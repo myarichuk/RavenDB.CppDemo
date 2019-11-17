@@ -2,7 +2,6 @@
 //
 
 #include "RavenDB.CppDemo.h"
-#include <raven_cpp_client.h>
 using namespace std;
 
 int main()
