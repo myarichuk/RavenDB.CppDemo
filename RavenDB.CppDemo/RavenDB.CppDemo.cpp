@@ -45,7 +45,7 @@ int main()
 	REGISTER_ID_PROPERTY_FOR(User, id);
 
 	auto store = ravendb::client::documents::DocumentStore::create();
-	store->set_urls({ "http://localhost:8080" });
+	store->set_urls({ "http://localhost:8080" }); //assuming there is unsecure RavenDB instance at this url
 	store->set_database("TestDB");
 	store->initialize();
 
