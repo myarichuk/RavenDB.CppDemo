@@ -14,7 +14,7 @@ add_executable (RavenDB.CppDemo "RavenDB.CppDemo.cpp" "RavenDB.CppDemo.h")
 target_include_directories(RavenDB.CppDemo PUBLIC ${CMAKE_INCLUDE_PATH})
 
 target_link_libraries(RavenDB.CppDemo
-	Raven_CppClient_static 
+	Raven_CppClient_static #RavenDB client
     OpenSSL::SSL 
     OpenSSL::Crypto 
     ${CURL_LIBRARIES} 

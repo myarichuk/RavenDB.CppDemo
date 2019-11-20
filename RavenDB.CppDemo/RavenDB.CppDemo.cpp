@@ -20,21 +20,19 @@ struct User
 	}
 };
 
-	inline void to_json(nlohmann::json& j, const User& u)
-	{
-		using ravendb::client::impl::utils::json_utils::set_val_to_json;
+inline void to_json(nlohmann::json& j, const User& u)
+{
+	using ravendb::client::impl::utils::json_utils::set_val_to_json;
+	set_val_to_json(j, "name", u.name);
+	set_val_to_json(j, "age", u.age);
+}
 
-		set_val_to_json(j, "name", u.name);
-		set_val_to_json(j, "age", u.age);
-	}
-
-	inline void from_json(const nlohmann::json& j, User& u)
-	{
-		using ravendb::client::impl::utils::json_utils::get_val_from_json;
-
-		get_val_from_json(j, "name", u.name);
-		get_val_from_json(j, "age", u.age);
-	}
+inline void from_json(const nlohmann::json& j, User& u)
+{
+	using ravendb::client::impl::utils::json_utils::get_val_from_json;
+	get_val_from_json(j, "name", u.name);
+	get_val_from_json(j, "age", u.age);
+}
 
 
 
@@ -50,7 +48,7 @@ int main()
 	store->initialize();
 
 	//fetch all existing database names
-	
+	//notice 'store' being an entry point for an operation
 	const auto databaseNames = *store->maintenance()->server()->send(GetDatabaseNamesOperation(0, INT_MAX));
 
 	//create TestDB if not exists
@@ -58,36 +56,40 @@ int main()
 	{
 		auto dr = ravendb::client::serverwide::DatabaseRecord();
 		dr.database_name = "TestDB";
+
+		//executing this creates a database, if it already exists, throws
 		store->maintenance()->server()->send(CreateDatabaseOperation(dr));
 	}
 
-    { //first store some data
+{
+	//opening a session encapsulates transaction
+    auto session = store->open_session("TestDB"); 
+    auto user = std::make_shared<User>();
+    user->name = "John Dow";
+    user->age = 35;
+    session.store(user);
 
-		//opening a session encapsulates transaction
-        auto session = store->open_session("TestDB"); 
-        auto user = std::make_shared<User>();
-        user->name = "John Dow";
-        user->age = 35;
-        session.store(user);
+    auto user2 = std::make_shared<User>();
+    user2->name = "Jane Dow";
+    user2->age = 24;
+    session.store(user2);
 
-        auto user2 = std::make_shared<User>();
-        user2->name = "Jane Dow";
-        user2->age = 24;
-        session.store(user2);
-
-		session.save_changes(); //tx commit
-    }
+	session.save_changes(); //tx commit, we talk with server here
+}
 
 	//now fetch some data from server
 	{
 		auto session = store->open_session();
+
+		//fetch record with id = 'users/1-A'
 		const auto john = *session.load<User>("users/1-A");
 
 		cout<< john.name << "'s age is " << john.age << endl;
 
-		//execute query and fetch all users that match filtering criteria
+		//execute query and fetch all users that match filtering criteria with sorting
 		const auto usersNamedJane = session.query<User>()
 											->where_starts_with("name","Jane")
+											->order_by_descending("name")
 											->to_list();
 
 		//should be always one user

@@ -41,10 +41,11 @@ message("CMAKE_INCLUDE_PATH : ${CMAKE_INCLUDE_PATH}")
 message("CMAKE_LIBRARY_PATH : ${CMAKE_LIBRARY_PATH}")
 
 include_directories(${CMAKE_INCLUDE_PATH})
+link_directories(${CMAKE_LIBRARY_PATH})
 
 add_subdirectory ("RavenDB.CppDemo")
 
-link_directories(${CMAKE_LIBRARY_PATH})
+
 
 add_dependencies(RavenDB.CppDemo Raven_CppClient_static)
 link_libraries(Raven_CppClient_static)
