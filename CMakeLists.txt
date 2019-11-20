@@ -5,6 +5,7 @@ cmake_minimum_required (VERSION 3.13)
 project ("RavenDB.CppDemo")
 set(CMAKE_CXX_STANDARD 17)
 
+#do required configuration for compiling this in Windows 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
 	set(CMAKE_CXX_FLAGS_RELEASE "/MT /O2 /Ob2 /DNDEBUG")	
@@ -12,8 +13,9 @@ if(MSVC)
 endif()
  
 set (RAVENCPP_SRC "${PROJECT_SOURCE_DIR}/libs/RavenDB" CACHE INTERNAL "RAVENCPP_SRC")
-include(FetchContent)
 
+#fetch RavenDB client from a repo
+include(FetchContent)
 FetchContent_Declare(
   ravendb_client_cpp
   GIT_REPOSITORY https://github.com/myarichuk/ravendb-cpp-client.git
@@ -24,6 +26,8 @@ FetchContent_Declare(
 FetchContent_GetProperties(ravendb_client_cpp)
 if(NOT ravendb_client_cpp_POPULATED)  
   FetchContent_Populate(ravendb_client_cpp)
+
+  #since we want only the client, we don't want to compile tests and tryouts, only the client
   set(BUILD_TRYOUTS OFF)
   set(BUILD_TESTS OFF)
   add_subdirectory("${RAVENCPP_SRC}/repository/" "${RAVENCPP_SRC}/binary")

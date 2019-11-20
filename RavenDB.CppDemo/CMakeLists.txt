@@ -13,8 +13,8 @@ find_package(Threads REQUIRED)
 add_executable (RavenDB.CppDemo "RavenDB.CppDemo.cpp" "RavenDB.CppDemo.h")
 target_include_directories(RavenDB.CppDemo PUBLIC ${CMAKE_INCLUDE_PATH})
 
-target_link_libraries(RavenDB.CppDemo #"${RAVENCPP_SRC}/binary/Raven.CppClient/Raven.CppClient.lib"  
-	Raven_CppClient 
+target_link_libraries(RavenDB.CppDemo
+	Raven_CppClient_static 
     OpenSSL::SSL 
     OpenSSL::Crypto 
     ${CURL_LIBRARIES} 
