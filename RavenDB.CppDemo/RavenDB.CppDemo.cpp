@@ -42,9 +42,29 @@ int main()
 
 	REGISTER_ID_PROPERTY_FOR(User, id);
 
+	/*
+	Initialize an object that represents a document store.
+	It will serve as an "access point" of all RavenDB functionality.
+	Note that the creation of DocumentStore has an overhead, so ideally it
+	would be a singleton
+	*/
 	auto store = ravendb::client::documents::DocumentStore::create();
+
+	/*
+	Now we configure the DocumentStore
+	Set at least one url of a RavenDB cluster and the client will fetch topology of the cluster after the first request.
+	Ideally there should be more than one urls here - in this way the initialization would be more resilient since the 
+	client API will try to connect for multiple nodes
+	*/
 	store->set_urls({ "http://localhost:8080" }); //assuming there is unsecure RavenDB instance at this url
+
+	/*
+	Set the default database to connect to. 
+	It is possible to specify other databases, so this setting is mostly for convenience
+	*/
 	store->set_database("TestDB");
+
+	//after this, no more configuration of the DocumentStore is possible
 	store->initialize();
 
 	//fetch all existing database names
