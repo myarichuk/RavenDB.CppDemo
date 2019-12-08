@@ -6,40 +6,13 @@
 using namespace std;
 using namespace ravendb::client::serverwide::operations;
 
-struct contact_info
-{
-	string country;
-	string city;
-	string address;
-
-	vector<string> emails;
-};
-
-inline void to_json(nlohmann::json& j, const contact_info& c)
-{
-	using ravendb::client::impl::utils::json_utils::set_val_to_json;
-	set_val_to_json(j, "city", c.city);
-	set_val_to_json(j, "country", c.country);
-	set_val_to_json(j, "address", c.address);
-	set_val_to_json(j, "emails", c.emails);
-}
-
-inline void from_json(const nlohmann::json& j, contact_info& c)
-{
-	using ravendb::client::impl::utils::json_utils::get_val_from_json;
-	
-	get_val_from_json(j, "city", c.city);
-	get_val_from_json(j, "country", c.country);
-	get_val_from_json(j, "address", c.address);
-	get_val_from_json(j, "emails", c.emails);
-}
 
 struct user
 {
 	string id;
 	string name;
 	int age{};
-	contact_info contact_info;
+	vector<string> emails;
 };
 
 inline void to_json(nlohmann::json& j, const user& u)
@@ -47,7 +20,7 @@ inline void to_json(nlohmann::json& j, const user& u)
 	using ravendb::client::impl::utils::json_utils::set_val_to_json;
 	set_val_to_json(j, "name", u.name);
 	set_val_to_json(j, "age", u.age);
-	set_val_to_json(j, "contact_info", u.contact_info);
+	set_val_to_json(j, "emails", u.emails);
 }
 
 inline void from_json(const nlohmann::json& j, user& u)
@@ -55,7 +28,7 @@ inline void from_json(const nlohmann::json& j, user& u)
 	using ravendb::client::impl::utils::json_utils::get_val_from_json;
 	get_val_from_json(j, "name", u.name);
 	get_val_from_json(j, "age", u.age);
-	get_val_from_json(j, "contact_info", u.contact_info);
+	get_val_from_json(j, "emails", u.emails);
 }
 
 
@@ -63,6 +36,7 @@ inline void from_json(const nlohmann::json& j, user& u)
 int main()
 {
 	cout << "Hello RavenDB!" << endl;
+	cout << "============" <<endl;
 
 	REGISTER_ID_PROPERTY_FOR(user, id);
 
@@ -103,38 +77,33 @@ int main()
 
 		//executing this creates a database, if it already exists, throws
 		store->maintenance()->server()->send(CreateDatabaseOperation(dr));
+		cout << "created database 'TestDB'" <<endl;
 	}
 
 {
 	//opening a session encapsulates transaction
-    auto session = store->open_session("TestDB"); 
+    auto session = store->open_session(); 
     auto user_record = std::make_shared<user>();
-    user_record->name = "John Dow";
+    user_record->name = "John Doe";
     user_record->age = 35;
-	user_record->contact_info = 
-	contact_info
-		{
-			"Dreamland",
-			"Fairy City",
-			"Sesame str. 123/456",
-			{"foo@bar.com","non_existing@mail_domain.com","bar@foo.com"}
-		};
-    session.store(user_record);
+	user_record->emails = {"john.doe@example.com","non_existing@example.com","bar@example.com"};
+    session.store(user_record); //this doesn't do roundtrip to the server
 
     auto user_record2 = std::make_shared<user>();
-    user_record2->name = "Jane Dow";
+    user_record2->name = "Jane Doe";
     user_record2->age = 24;
-	user_record2->contact_info = 
-	contact_info
-		{
-			"Jotunheimr",
-			"Jotunfjord",
-			"Frost str. 45/67",
-			{"abc@foobar.com", "jane.dow@foobar.com"}
-		};
-    session.store(user_record2);
+	user_record2->emails = {"abc@example.com", "jane.doe@example.com"};
+    session.store(user_record2); //this doesn't do roundtrip to the server as well
+
+	auto user_record3 = std::make_shared<user>();
+    user_record3->name = "Jack Foobar";
+    user_record3->age = 28;
+	user_record3->emails = {"jack.foobar@example.com", "xyz@example.com"};
+    session.store(user_record3); 
 	
 	session.save_changes(); //tx commit, we talk with server here
+	cout << "saved some data to database..." <<endl;
+
 }
 
 	//now fetch some data from server
@@ -142,24 +111,79 @@ int main()
 		auto session = store->open_session();
 
 		//fetch record with id = 'users/1-A'
+
 		const auto john = *session.load<user>("users/1-A");
 
+		cout << "============" <<endl;
+		cout << "load by id results" <<endl;
 		cout<< john.name << "'s age is " << john.age << endl;
 
 		//execute query and fetch all users that match filtering criteria with sorting
 		const std::vector<std::shared_ptr<user>> usersNamedJane = session.query<user>()
 		                                                                 ->where_starts_with("name", "Jane")
 		                                                                 ->order_by_descending("name")
-		                                                                 ->to_list();		
-		//should be always one user
+		                                                                 ->to_list();
+
+		cout << "============" <<endl;
+		cout << "query #1 results" <<endl;
 		cout << "found " << usersNamedJane.size() << " user(s) with name 'Jane'" << endl;
 		cout<< usersNamedJane[0]->name << "'s age is " << usersNamedJane[0]->age << endl;
-		for(const auto& email : usersNamedJane[0]->contact_info.emails)
+		for(const auto& email : usersNamedJane[0]->emails)
 			cout << "email:" << email << endl;
+		cout << "============" <<endl;
+
+		const auto usersByEmail = session.query<user>()
+										 ->where_in("emails",
+											 vector<string>
+											 {
+                                                 "john.doe@example.com", 
+                                                 "jane.doe@example.com"
+											 }, false)
+		                                 ->to_list();		
+
+		cout << "============" <<endl;
+		cout << "query #2 results" <<endl;
+		for(const auto& user : usersByEmail)
+			cout << "name:" << user->name << endl;
+
+		const auto users_complex = session.query<user>()
+			->where_greater_than("age", 20)
+			  ->and_also()
+		    ->where_ends_with("name", "Doe")
+			->to_list();
+
+		cout << "============" <<endl;
+		cout << "query #3 results" <<endl;
+		for(const auto& user : users_complex)
+			cout << "name:" << user->name << endl;
+		const auto users_uber_complex = session.query<user>()
+		    ->where_in("emails",
+			  vector<string>
+			  {
+                "john.doe@example.com", 
+                "jane.doe@example.com"
+              }, false)
+		    ->or_else() // OR relationship to other clauses
+			->open_subclause() //open parenthesis
+			  ->where_greater_than("age", 25)
+  			    ->and_also() // AND relationship between clauses
+		      ->where_ends_with("name", "Doe")
+			->close_subclause() //close parenthesis
+			->to_list();
+
+		cout << "============" <<endl;
+		cout << "query #4 results" <<endl;
+
+		//note: Jane Doe age = 24, but because of the OR clause
+		//both John Doe and Jane Doe user records will be fetched
+		for(const auto& user : users_uber_complex)
+			cout << "name:" << user->name << endl;
+		cout << "============" <<endl;
 	}
 
 	//delete the database on the server
 	store->maintenance()->server()->send(DeleteDatabasesOperation("TestDB", true));
+	cout << "deleted database 'TestDB'" <<endl;
 
  	return 0;
 }
